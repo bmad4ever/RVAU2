@@ -1,0 +1,1 @@
+This folder contains code copied or adapted from opencv website, forums or blogs
