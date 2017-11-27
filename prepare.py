@@ -132,9 +132,10 @@ def draw_circle(event, x, y, flags, param):
             cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
 
 
-def save():
-    global annotations, draw_img
-    # TODO implement
+def save(img):
+    np.savetxt("annotations.txt", annotations, '%u')
+    img_rgb = img * 255
+    cv2.imwrite("images/result.png", img_rgb)
 
 # endregion AUX METHODS
 
@@ -164,6 +165,7 @@ while(1):
     if k == ord('m'):  # CHANGES DRAW MODE
         mode = not mode
     if k == ord('s'):  # TODO SAVE
+        save(img2show)
         break
     elif k == 27:
         break
