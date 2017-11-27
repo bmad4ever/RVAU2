@@ -1,0 +1,10 @@
+pickle usage sample
+with open('testdata.pkl', 'wb') as output:
+    pickle.dump(auxfuncs.pickle_keypoints(kp1, des1),output) #pickle.dump((kp1,des1), output, pickle.HIGHEST_PROTOCOL)
+    pickle.dump([((12,0),'somestring')], output, pickle.HIGHEST_PROTOCOL)
+    pickle.dump(img2, output, pickle.HIGHEST_PROTOCOL)
+
+with open('testdata.pkl', 'rb') as input:
+    a = auxfuncs.unpickle_keypoints(pickle.load(input))#a = pickle.load(input)
+    b = pickle.load(input)
+    c = pickle.load(input)
