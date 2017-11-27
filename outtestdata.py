@@ -8,10 +8,10 @@ import auxfuncs
 src_img = cv2.imread('./images/poster4.jpg',cv2.IMREAD_COLOR) # trainImage
 src_img_grey = cv2.cvtColor(src_img,cv2.COLOR_RGB2GRAY)
 src_width, src_height, channels = tuple(src_img.shape)
-if channels is not None and channels < 4:
-    b, g, r = cv2.split(src_img)
-    src_img = cv2.merge((b, g, r, np.ones((src_width, src_height, 1), np.uint8) * 255))
-src_img = src_img.astype(float) / 255
+#if channels is not None and channels < 4:
+#    b, g, r = cv2.split(src_img)
+#    src_img = cv2.merge((b, g, r, np.ones((src_width, src_height, 1), np.uint8) * 255))
+#src_img = src_img.astype(float) / 255
 
 draw_img = np.zeros((200,200,4))
 cv2.circle(draw_img, (50, 50), 15, (1,1,0,1), -1)
