@@ -14,11 +14,13 @@
 import cv2
 import numpy as np
 import math
+import pickle
+import auxfuncs
 
 # region MAIN VARIABLES
 
 # annotations are position,text tuples that are saved to a file after editing
-annotations = []
+annotations = [((12, 0), 'example1'), ((12, 0), 'example2')]
 
 drawing = False  # true if mouse is pressed
 mode = True  # if True, draw rectangle. Press 'm' to toggle to curve
@@ -133,9 +135,16 @@ def draw_circle(event, x, y, flags, param):
 
 
 def save(img):
-    np.savetxt("annotations.txt", annotations, '%u')
-    img_rgb = img * 255
-    cv2.imwrite("images/result.png", img_rgb)
+    src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    sift = cv2.xfeatures2d.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(src_img_grey, None)
+
+    with open('testdata.pkl', 'wb') as output:
+        pickle.dump(auxfuncs.pickle_keypoints(kp1, des1), output)
+        pickle.dump(annotations, output, pickle.HIGHEST_PROTOCOL)  # annotations position are relative to src_img size
+        pickle.dump(draw_img, output, pickle.HIGHEST_PROTOCOL)  # visual annotations as user draws in a scaled down img
+        pickle.dump(src_img, output, pickle.HIGHEST_PROTOCOL)  # only need size but saving the entire image can be useful for debuging
 
 # endregion AUX METHODS
 
@@ -165,7 +174,7 @@ while(1):
     if k == ord('m'):  # CHANGES DRAW MODE
         mode = not mode
     if k == ord('s'):  # TODO SAVE
-        save(img2show)
+        save(src_img)
         break
     elif k == 27:
         break
