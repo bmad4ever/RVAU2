@@ -15,6 +15,7 @@ src_width, src_height, channels = tuple(src_img.shape)
 
 draw_img = np.zeros((200,200,4))
 cv2.circle(draw_img, (50, 50), 15, (1,1,0,1), -1)
+cv2.circle(draw_img, (200, 200), 15, (1,1,0,1), -1)
 
 sift = cv2.xfeatures2d.SIFT_create()
 kp1, des1 = sift.detectAndCompute(src_img_grey,None)

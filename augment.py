@@ -69,27 +69,32 @@ homo = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 transformMatrix, mask = homo#cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 matchesMask = mask.ravel().tolist()
 
-# Create a list of points.
-#height, width = src_img.shape[:2]
-#pts_src = np.empty((0,2),dtype=np.int32)
-#pts_src = np.append(pts_src, [(0,0)], axis=0)
-#pts_src = np.append(pts_src, [(width-1,0)], axis=0)
-#pts_src = np.append(pts_src, [(width-1,height-1)], axis=0)
-#pts_src = np.append(pts_src, [(0,height-1)], axis=0)
-
 #TODO also need to consider the reverse situation when src is bigger then user pic. extensiion on x & y must be separated
 #largerImage = np.zeros(user_img.shape[:2],np.uint8)
 #largerImage =
-sw,sh = src_img.shape[1::-1]
+dw, dh = drawn_image.shape[1::-1]
 uw,uh = user_img.shape[1::-1]
-maxw , maxh = (max(sw,uw),max(sh,uh))
-print('%d,%d,%d,%d,%d,%d,%d,%d,' % (sw,sh,uw,uh,maxw,maxh,maxh-sh,maxw-sw))
-src_img_ext = cv2.copyMakeBorder(src_img,0,maxh-sh,0,maxw-sw,borderType=cv2.BORDER_CONSTANT,value=(0,0,0,0))
-user_img_ext = cv2.copyMakeBorder(user_img,0,maxh-uh,0,maxw-uw,borderType=cv2.BORDER_CONSTANT,value=(0,0,0,0))
-im_temp = cv2.warpPerspective(src_img_ext, transformMatrix,src_img_ext.shape[1::-1])
+#maxw , maxh = (max(dw, uw), max(dh, uh))
+#print('%d,%d,%d,%d,%d,%d,%d,%d,' % (dw, dh, uw, uh, maxw, maxh, maxh - dh, maxw - dw))
+
+#resize draw image to original trainning mage size
+sw,sh = src_img.shape[1::-1]
+drawn_image = cv2.resize(drawn_image, (0, 0), fx=sw/dw, fy=sh/dh, interpolation=cv2.INTER_CUBIC)
+dw, dh = drawn_image.shape[1::-1]
+maxw , maxh = (max(dw, uw), max(dh, uh))
+print('%d,%d,%d,%d,%d,%d,%d,%d,' % (dw, dh, uw, uh, maxw, maxh, maxh - dh, maxw - dw))
+
+src_img_ext = cv2.copyMakeBorder(drawn_image, 0, maxh - dh, 0, maxw - dw, borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0, 0))
+
+user_img_ext = cv2.copyMakeBorder(user_img,0,maxh-uh,0,maxw-uw,borderType=cv2.BORDER_CONSTANT,value=(0,0,0))
+#b, g, r = cv2.split(user_img_ext)
+#user_img_ext = cv2.merge((b, g, r, np.ones((maxh,maxw, 1), np.uint8) ))
+#user_img_ext = user_img_ext.astype(float)
+
+im_temp = cv2.warpPerspective(src_img_ext, transformMatrix,drawn_image.shape[1::-1])#src_img_ext.shape[1::-1])
 #projpoints = cv2.transform(
 projpoints= cv2.perspectiveTransform(
-    np.array([ [[0, 0]], [[sw - 1, 0]], [[sw - 1, sh - 1]], [[0, sh - 1]] ], dtype=np.float32)
+    np.array([[[0, 0]], [[dw - 1, 0]], [[dw - 1, dh - 1]], [[0, dh - 1]]], dtype=np.float32)
                    ,transformMatrix#homo
                     #cv2.getPerspectiveTransform(src_pts2, dst_pts2)
 )
@@ -101,9 +106,9 @@ print(' > ' + str(projn))
 
 #projpoints = np.array(projpoints,np)
 #projpoints = homo * np.array([[0, 0], [sw - 1, 0], [sw - 1, sh - 1], [0, sh - 1]], dtype=np.float32)
-cv2.fillConvexPoly(user_img_ext,projn , 0, cv2.LINE_AA)
-outimage = user_img_ext + im_temp
-
+#cv2.fillConvexPoly(user_img_ext,projn , 0, cv2.LINE_AA)
+#outimage = user_img_ext + im_temp
+outimage = auxfuncs.alpha_blend(user_img_ext.astype(float)/255,im_temp.astype(float),channels=3)
 cv2.imshow('draw',outimage)
 
 src_img = cv2.cvtColor(src_img,cv2.COLOR_RGB2GRAY)
