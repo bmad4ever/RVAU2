@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import sys
 from matplotlib import pyplot as plt
 import pickle
 import auxfuncs
@@ -60,55 +61,47 @@ if len(good)<MIN_MATCH_COUNT:
 src_pts = np.float32([ kp1[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
 dst_pts = np.float32([ kp2[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
 
-
-src_pts2 = np.float32([ kp1[m.queryIdx].pt for m in good ])
-dst_pts2 = np.float32([ kp2[m.trainIdx].pt for m in good ])
-#print(str(src_pts2))
-
-homo = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-transformMatrix, mask = homo#cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+transformMatrix, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0) #TODO considerar mudar o threshold
 matchesMask = mask.ravel().tolist()
 
-#TODO also need to consider the reverse situation when src is bigger then user pic. extensiion on x & y must be separated
-#largerImage = np.zeros(user_img.shape[:2],np.uint8)
-#largerImage =
-dw, dh = drawn_image.shape[1::-1]
-uw,uh = user_img.shape[1::-1]
-#maxw , maxh = (max(dw, uw), max(dh, uh))
-#print('%d,%d,%d,%d,%d,%d,%d,%d,' % (dw, dh, uw, uh, maxw, maxh, maxh - dh, maxw - dw))
+#get draw and user images with same dimensions
+try:
+    dw, dh = drawn_image.shape[1::-1] #dimensions of the draw image
+    uw,uh = user_img.shape[1::-1]     #dimensions of the picture given by the user
+    #resize draw image to original trainning mage size
+    sw,sh = src_img.shape[1::-1]      #dimensions of the source image from which the loaded keypoints were extracted
+    #redimension draw image to fit the original source image dimensions
+    draw_img_ext = cv2.resize(drawn_image, (0, 0), fx=sw/dw, fy=sh/dh, interpolation=cv2.INTER_CUBIC)
+    dw, dh = draw_img_ext.shape[1::-1] #update dimensions after scaling
 
-#resize draw image to original trainning mage size
-sw,sh = src_img.shape[1::-1]
-drawn_image = cv2.resize(drawn_image, (0, 0), fx=sw/dw, fy=sh/dh, interpolation=cv2.INTER_CUBIC)
-dw, dh = drawn_image.shape[1::-1]
-maxw , maxh = (max(dw, uw), max(dh, uh))
-print('%d,%d,%d,%d,%d,%d,%d,%d,' % (dw, dh, uw, uh, maxw, maxh, maxh - dh, maxw - dw))
+    #extend images borders so they have the same dimensions. This is needed to:
+    #   -avoid loosing draw image parts that should be visible in the final output;
+    #   -allow to apply alphaBlend function using the given images
 
-src_img_ext = cv2.copyMakeBorder(drawn_image, 0, maxh - dh, 0, maxw - dw, borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0, 0))
+    #get the maximum sizes between the 2 images on each dimension
+    maxw , maxh = (max(dw, uw), max(dh, uh))
+    #print('%d,%d,%d,%d,%d,%d,%d,%d,' % (dw, dh, uw, uh, maxw, maxh, maxh - dh, maxw - dw)) #DEBUG PRINT, SIZES
+    draw_img_ext = cv2.copyMakeBorder(draw_img_ext, 0, maxh - dh, 0, maxw - dw, borderType=cv2.BORDER_CONSTANT, value=(0, 0, 0, 0))
+    user_img_ext = cv2.copyMakeBorder(user_img,0,maxh-uh,0,maxw-uw,borderType=cv2.BORDER_CONSTANT,value=(0,0,0))
+except:
+    print('failed to extend images')
+    print("Unexpected error:" + str(sys.exc_info()[0]))
+    raise#quit()
 
-user_img_ext = cv2.copyMakeBorder(user_img,0,maxh-uh,0,maxw-uw,borderType=cv2.BORDER_CONSTANT,value=(0,0,0))
-#b, g, r = cv2.split(user_img_ext)
-#user_img_ext = cv2.merge((b, g, r, np.ones((maxh,maxw, 1), np.uint8) ))
-#user_img_ext = user_img_ext.astype(float)
+#build display image by: warping draw image; alphaBlend it over the user image; add annotations on top;
+try:
+    im_temp = cv2.warpPerspective(draw_img_ext, transformMatrix, draw_img_ext.shape[1::-1])#TODO review this
+    #note: dw & dh are the extended draw image dimensions obtained on previous step
+    extended_drawn_image_points = np.array([[[0, 0]], [[dw - 1, 0]], [[dw - 1, dh - 1]], [[0, dh - 1]]], dtype=np.float32)
+    projpoints= cv2.perspectiveTransform(extended_drawn_image_points,transformMatrix)
+    outimage = auxfuncs.alpha_blend(user_img_ext.astype(float)/255,im_temp.astype(float),channels=3)
+    #TODO add annotations, maybe add dynamicly on a callback with mouse over
+    #TODO resize out image to target scale
+except:
+    print('failed to build annotated image')
+    print("Unexpected error:" + str(sys.exc_info()[0]))
+    raise#quit()
 
-im_temp = cv2.warpPerspective(src_img_ext, transformMatrix,drawn_image.shape[1::-1])#src_img_ext.shape[1::-1])
-#projpoints = cv2.transform(
-projpoints= cv2.perspectiveTransform(
-    np.array([[[0, 0]], [[dw - 1, 0]], [[dw - 1, dh - 1]], [[0, dh - 1]]], dtype=np.float32)
-                   ,transformMatrix#homo
-                    #cv2.getPerspectiveTransform(src_pts2, dst_pts2)
-)
-projn = []
-for i in range(len(projpoints)):
-    projn.append(projpoints[i][0])
-projn = np.array(projn, dtype=np.int32)
-print(' > ' + str(projn))
-
-#projpoints = np.array(projpoints,np)
-#projpoints = homo * np.array([[0, 0], [sw - 1, 0], [sw - 1, sh - 1], [0, sh - 1]], dtype=np.float32)
-#cv2.fillConvexPoly(user_img_ext,projn , 0, cv2.LINE_AA)
-#outimage = user_img_ext + im_temp
-outimage = auxfuncs.alpha_blend(user_img_ext.astype(float)/255,im_temp.astype(float),channels=3)
 cv2.imshow('draw',outimage)
 
 src_img = cv2.cvtColor(src_img,cv2.COLOR_RGB2GRAY)
