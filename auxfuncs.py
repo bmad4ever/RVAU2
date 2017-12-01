@@ -8,6 +8,7 @@ import numpy as np
 #   Pickle import/export keyppoints & descriptors for opencv
 ######################################################################################################
 
+
 def pickle_keypoints(keypoints, descriptors):
     i = 0
     temp_array = []
@@ -17,6 +18,7 @@ def pickle_keypoints(keypoints, descriptors):
         i+=1
         temp_array.append(temp)
     return temp_array
+
 
 def unpickle_keypoints(array):
     keypoints = []
