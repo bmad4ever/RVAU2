@@ -100,7 +100,7 @@ def alpha_blend(background, foreground):
 
 
 # mouse callback function
-def draw_circle(event, x, y, flags, param):
+def mouse_callback(event, x, y, flags, param):
     global ix, iy, drawing, mode, annotations
 
     if event == cv2.EVENT_RBUTTONDOWN:
@@ -135,10 +135,10 @@ def draw_circle(event, x, y, flags, param):
 
 
 def save(img):
-    src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    #src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     sift = cv2.xfeatures2d.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(src_img_grey, None)
+    kp1, des1 = sift.detectAndCompute(img, None)
 
     with open('testdata.pkl', 'wb') as output:
         pickle.dump(auxfuncs.pickle_keypoints(kp1, des1), output)
@@ -164,7 +164,7 @@ MAIN_WINDOW_NAME = 'Prepare Program'
 # region Main Program Code
 
 cv2.namedWindow(MAIN_WINDOW_NAME)
-cv2.setMouseCallback(MAIN_WINDOW_NAME, draw_circle)
+cv2.setMouseCallback(MAIN_WINDOW_NAME, mouse_callback)
 
 while(1):
     img2show = LAYERS_OVERLAY_METHOD()

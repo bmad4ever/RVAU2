@@ -1,3 +1,3 @@
-import openfile as of
+import imagelabels as img
 
-print(of.filename)
+img.show_image()
