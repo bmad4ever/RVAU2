@@ -47,7 +47,6 @@ def alpha_blend(background, foreground,channels = 4):
     if channels<4:foreground = cv2.merge(cv2.split(foreground)[:channels])
     return cv2.add(foreground, background)
 
-
 ######################################################################################################
 # Label related funcs
 ######################################################################################################
@@ -88,3 +87,17 @@ def remove_label(image, annotation_to_remove, annotations_array):
     image = np.zeros((len(image), len(image[0]), 4), np.uint8)
     for annotation in annotations_array:
         paint_label(image, annotation[0][0], annotation[0][1], annotation[1])
+        
+######################################################################################################
+# Window related funcs
+######################################################################################################
+
+def cv_showWindowWithMaxDim(windowname, img, maxdim=500, sw=None, sh=None):
+    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
+    if sw is None or sh is None:
+        sw, sh = img.shape[1::-1]
+    if sw < sh:
+        cv2.resizeWindow(windowname, int(maxdim * sw / sh), maxdim)
+    else:
+        cv2.resizeWindow(windowname, maxdim, int(maxdim * sh / sw))
+    cv2.imshow(windowname,img)
