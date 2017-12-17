@@ -52,11 +52,11 @@ def alpha_blend(background, foreground,channels = 4):
 ######################################################################################################
 
 def cv_showWindowWithMaxDim(windowname, img, maxdim=500, sw=None, sh=None):
-	cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
-	if sw is None or sh is None:
-		sw, sh = img.shape[1::-1]
-	if sw < sh:
-		cv2.resizeWindow(windowname, int(maxdim * sw / sh), maxdim)
-	else:
-		cv2.resizeWindow(windowname, maxdim, int(maxdim * sh / sw))
-	cv2.imshow(windowname,img)
+    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
+    if sw is None or sh is None:
+        sw, sh = img.shape[1::-1]
+    if sw < sh:
+        cv2.resizeWindow(windowname, int(maxdim * sw / sh), maxdim)
+    else:
+        cv2.resizeWindow(windowname, maxdim, int(maxdim * sh / sw))
+    cv2.imshow(windowname,img)
