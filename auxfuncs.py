@@ -34,7 +34,7 @@ def unpickle_keypoints(array):
 ######################################################################################################
 # Image related funcs
 ######################################################################################################
-def alpha_blend(background, foreground,channels = 4):
+def alpha_blend(background, foreground, channels=4):
     '''
     :param background: background image, should have 4 channels otherwise specify channels input param
     :param foreground: last layer should be the alphas layer

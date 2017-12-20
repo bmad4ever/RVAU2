@@ -21,6 +21,8 @@ from tkinter import *
 
 # region MAIN VARIABLES
 
+root = Tk()
+
 kp1 = None  # SIFT keypoints
 des1 = None  # SIFT descriptors
 
@@ -28,6 +30,18 @@ des1 = None  # SIFT descriptors
 annotations = [((12, 0), 'example1'), ((12, 0), 'example2')]
 scale = 0
 img2show = None
+img2show_mask = None
+
+# Mask Variables
+mask_drawing = None
+mask_image = None
+mask = None
+mask_x, mask_y = -1, -1
+mask_window_name = None
+circle_radius = IntVar()
+circle_radius.set(10)
+
+# Drawing Variables
 drawing = False  # true if mouse is pressed
 mode = True  # if True, draw rectangle. Press 'm' to toggle to curve
 ix, iy = -1, -1
@@ -40,6 +54,7 @@ grab_cut_color_foreground = (1, 0, 0, 0)
 grab_cut_color_background = (0, 0, 1, 0)
 draw_rectangle_color = (0, 1, 0, 0.5)
 draw_circle_color = (1, 0, 0, 0.5)
+draw_circle_color_mask = (1, 1, 1, 1)
 
 # reference image
 src_img = cv2.imread('images/poster_test.jpg', cv2.IMREAD_UNCHANGED)
@@ -49,7 +64,7 @@ src_img = cv2.imread('images/poster_test.jpg', cv2.IMREAD_UNCHANGED)
 # reference image scaled down
 # this will be used to avoid slow interaction and to save 'small' info images
 def scale_image():
-    global src_img_scaled, draw_img, annotations_img, scale
+    global src_img_scaled, draw_img, annotations_img, scale, mask_image
     target_length = 400
     min_size = min(tuple(src_img.shape[1::-1]))
     scale = target_length / min_size
@@ -60,10 +75,12 @@ def scale_image():
         b, g, r = cv2.split(src_img_scaled)
         src_img_scaled = cv2.merge((b, g, r, np.ones((src_width_scaled, src_height_scaled, 1), np.uint8) * 255))
     src_img_scaled = src_img_scaled.astype(float) / 255
-    # src_img_debug = src_img.copy().astype(float) / 255
     # draw image
     draw_img = np.zeros((src_width_scaled, src_height_scaled, 4), np.uint8)
     draw_img = draw_img.astype(float)
+    # mask image
+    mask_image = np.zeros((src_width_scaled, src_height_scaled, 4), np.uint8)
+    mask_image = mask_image.astype(float)
     # text image
     annotations_img = np.zeros((src_width_scaled, src_height_scaled, 4), np.uint8)
     annotations_img = annotations_img.astype(float)
@@ -81,6 +98,10 @@ def overlay_type_additive():
 def overlay_type_cv_blend():
     r = auxfuncs.alpha_blend(src_img_scaled, draw_img)
     return auxfuncs.alpha_blend(r, annotations_img)
+
+
+def overlay_type_cv_blend_mask():
+    return auxfuncs.alpha_blend(src_img_scaled, mask_image)
 
 
 def create_annotation(x, y, text, window):
@@ -178,7 +199,8 @@ def load_image():
     control_frame = Frame(control)
     control_frame.pack(side="top", fill="both")
     mode_text = StringVar()
-    Label(control_frame, text='mode: shape', textvariable=mode_text, justify=LEFT).pack(side=LEFT)
+    mode_text.set('mode: shape')
+    Label(control_frame, textvariable=mode_text, justify=LEFT).pack(side=LEFT)
 
     def command():
         global mode
@@ -191,19 +213,51 @@ def load_image():
 
 
 def compute_sift(img):
-    global kp1, des1
+    global kp1, des1, mask, mask_image, scale
     img_test = img.copy()
     sift = cv2.xfeatures2d.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(img, None)
+    mask = mask_image.copy() * 255
+    mask = mask.astype(np.uint8)
+    mask = cv2.resize(255 - mask, (0, 0), fx=1/scale, fy=1/scale, interpolation=cv2.INTER_CUBIC)
+    mask = cv2.cvtColor(mask, cv2.COLOR_RGBA2GRAY)
+    kp1, des1 = sift.detectAndCompute(img, mask)
     auxfuncs.cv_showWindowWithMaxDim('\'DB\' features', cv2.drawKeypoints(img_test, kp1, img_test), maxdim=500)
 
 
-root = Tk()
+def mask_mouse_callback(event, x, y, flags, param):
+    global mask_drawing, mask_image, circle_radius, mask_y, mask_x, img2show_mask
+    if event == cv2.EVENT_LBUTTONDOWN:
+        mask_drawing = True
+        mask_x, mask_y = x, y
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if mask_drawing:
+            cv2.circle(mask_image, (x, y), circle_radius.get(), draw_circle_color_mask, -1)
+            img2show_mask = overlay_type_cv_blend_mask()
+            cv2.imshow(mask_window_name, img2show_mask)
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        mask_drawing = False
+
+
+def open_mask_creation():
+    global mask_window_name, img2show_mask
+    mask_window_name = 'Mask Creation'
+    cv2.namedWindow(mask_window_name)
+    cv2.setMouseCallback(mask_window_name, mask_mouse_callback)
+    img2show_mask = overlay_type_cv_blend_mask()
+    cv2.imshow(mask_window_name, img2show_mask)
+
+
+root.title('Prepare')
 center(root)
 frame = Frame(root)
 frame.pack(side="top", fill="both")
 Button(frame, text="Load Image", command=load_image).pack(side="top")
 Button(frame, text="Load Mask").pack(side="top")
+Button(frame, text="Create Mask", command=open_mask_creation).pack(side="top")
+Label(frame, text="Circle Radius").pack()
+Scale(frame, from_=0, to=100, orient=HORIZONTAL, variable=circle_radius).pack()
 Button(frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side="top")
 Button(frame, text="Save to File", command=lambda: save(img2show)).pack(side="top")
 root.mainloop()
