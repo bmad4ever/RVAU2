@@ -21,6 +21,9 @@ from tkinter import *
 
 # region MAIN VARIABLES
 
+kp1 = None  # SIFT keypoints
+des1 = None  # SIFT descriptors
+
 # annotations are position,text tuples that are saved to a file after editing
 annotations = [((12, 0), 'example1'), ((12, 0), 'example2')]
 scale = 0
@@ -35,8 +38,8 @@ text_tag_background_color = (1, 1, 1, 1)
 text_tag_text_color = (0, 0, 0, 1)
 grab_cut_color_foreground = (1, 0, 0, 0)
 grab_cut_color_background = (0, 0, 1, 0)
-draw_rectangle_color = (0, 1, 0, 1)
-draw_circle_color = (1, 0, 0, 1)
+draw_rectangle_color = (0, 1, 0, 0.5)
+draw_circle_color = (1, 0, 0, 0.5)
 
 # reference image
 src_img = cv2.imread('images/poster_test.jpg', cv2.IMREAD_UNCHANGED)
@@ -69,41 +72,15 @@ def scale_image():
 
 # region AUX METHODS
 
-
+# NOT USED
 def overlay_type_additive():
     r = cv2.add(src_img_scaled, draw_img)
     return cv2.add(r, annotations_img)
 
-'''
-uses CPU ONLY. is 2 SLOW!!!
-def OVERLAY_TYPE_MUL_IT():
-    r = src_img.copy()
-    overlayImages(r,draw_img)
-    overlayImages(r,annotations_img)
-    return r
-'''
 
 def overlay_type_cv_blend():
-    r = alpha_blend(src_img_scaled, draw_img)
-    return alpha_blend(r, annotations_img)
-
-'''
-uses CPU ONLY. is 2 SLOW!!!
-def overlayImages(src,overlay):
-    for i in range(src_width):
-        for j in range(src_height):
-            alpha = float(overlay[i][j][3]/255)
-            src[i][j] = alpha*overlay[i][j]+(1-alpha)*src[i][j]
-            src[i][j][3] = 255
-'''
-
-def alpha_blend(background, foreground):
-    alpha = cv2.split(foreground)[3]#.astype(float)
-    alpha = cv2.merge((alpha, alpha, alpha,alpha))
-    #background = background/255
-    #foreground = foreground/255
-    background = cv2.multiply(1.0 - alpha, background)
-    return cv2.add(foreground, background)
+    r = auxfuncs.alpha_blend(src_img_scaled, draw_img)
+    return auxfuncs.alpha_blend(r, annotations_img)
 
 
 def create_annotation(x, y, text, window):
@@ -113,8 +90,10 @@ def create_annotation(x, y, text, window):
     annotations.append(new_annotation)
     auxfuncs.paint_label(annotations_img, x, y, text, font_scale=font_scale)
     window.withdraw()
-    img2show = LAYERS_OVERLAY_METHOD()
+
+    img2show = overlay_type_cv_blend()
     cv2.imshow(main_window_name, img2show)
+
     cv2.setMouseCallback(main_window_name, mouse_callback)
 
 
@@ -133,17 +112,15 @@ def mouse_callback(event, x, y, flags, param):
 
         elif event == cv2.EVENT_MOUSEMOVE:
             if drawing:
-                if mode:
-                    cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
-                else:
-                    cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
+                #cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
+                cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
+                img2show = overlay_type_cv_blend()
+                cv2.imshow(main_window_name, img2show)
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False
-            if mode:
-                cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
-            else:
-                cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
+            # cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
+            cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
     else:
         if event == cv2.EVENT_LBUTTONDBLCLK:
             text_window = Toplevel(root)
@@ -159,10 +136,11 @@ def mouse_callback(event, x, y, flags, param):
 
 
 def save(img):
-    #src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    if kp1 is None or des1 is None:
+        print("Missing keypoints or descriptors")
+        return
 
-    sift = cv2.xfeatures2d.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(img, None)
+    #src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     with open('testdata.pkl', 'wb') as output:
         pickle.dump(auxfuncs.pickle_keypoints(kp1, des1), output)
@@ -172,16 +150,6 @@ def save(img):
 
 # endregion AUX METHODS
 
-# region PROGRAM DEFINITIONS/CONFIG
-
-# assign the method. name should start with OVERLAY_TYPE.
-# OVERLAY_TYPE_CV_BLEND needs that images are cast to floats. it will occlude layers below and maker program slow =(
-# OVERLAY_TYPE_ADDITIVE uses the uInt8 default format. it will not occlude layers below
-
-
-LAYERS_OVERLAY_METHOD = overlay_type_cv_blend
-
-# endregion PROGRAM DEFINITIONS/CONFIG
 
 # region Main Program Code
 
@@ -196,11 +164,6 @@ def center(top_level):
     top_level.geometry("%dx%d+%d+%d" % (size + (x, y)))
 
 
-def command():
-    global mode
-    mode = not mode
-
-
 def load_image():
     global src_img, img2show, main_window_name, mode
     filename = of.get_file()
@@ -209,13 +172,30 @@ def load_image():
     main_window_name = 'Prepare Program'
     cv2.namedWindow(main_window_name)
     cv2.setMouseCallback(main_window_name, mouse_callback)
-    img2show = LAYERS_OVERLAY_METHOD()
+    img2show = overlay_type_cv_blend()
     cv2.imshow(main_window_name, img2show)
     control = Toplevel(root)
     control_frame = Frame(control)
     control_frame.pack(side="top", fill="both")
-    Label(control_frame, text="Mode", justify=LEFT).pack(side=LEFT)
+    mode_text = StringVar()
+    Label(control_frame, text='mode: shape', textvariable=mode_text, justify=LEFT).pack(side=LEFT)
+
+    def command():
+        global mode
+        mode = not mode
+        if mode:
+            mode_text.set('mode: shape')
+        else:
+            mode_text.set('mode: label')
     Button(control_frame, text="Change", command=command).pack(side="top")
+
+
+def compute_sift(img):
+    global kp1, des1
+    img_test = img.copy()
+    sift = cv2.xfeatures2d.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(img, None)
+    auxfuncs.cv_showWindowWithMaxDim('\'DB\' features', cv2.drawKeypoints(img_test, kp1, img_test), maxdim=500)
 
 
 root = Tk()
@@ -224,8 +204,8 @@ frame = Frame(root)
 frame.pack(side="top", fill="both")
 Button(frame, text="Load Image", command=load_image).pack(side="top")
 Button(frame, text="Load Mask").pack(side="top")
-Button(frame, text="Compute KeyPoint").pack(side="top")
-Button(frame, text="Save to File", command=save(img2show)).pack(side="top")
+Button(frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side="top")
+Button(frame, text="Save to File", command=lambda: save(img2show)).pack(side="top")
 root.mainloop()
 cv2.destroyAllWindows()
 

@@ -53,8 +53,8 @@ def alpha_blend(background, foreground,channels = 4):
 ######################################################################################################
 def paint_label(image, x, y, text, font_scale=1, text_thickness=1, rectangle_border_thickness=1):
     size = cv2.getTextSize(text=text, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=font_scale, thickness=text_thickness)
-    fill_color = (1, 1, 0)
-    border_color = (0, 0, 0)
+    fill_color = (1, 1, 0, 1)
+    # border_color = (0, 0, 0)
     margin = int(size[0][0] / 20)
     pointer = margin * 2
     cv2.rectangle(image,
