@@ -161,7 +161,10 @@ def save(img):
         print("Missing keypoints or descriptors")
         return
 
-    #src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    if len(kp1) < 4:
+        print("There must be at least 4 key points")
+        return
 
     with open('testdata.pkl', 'wb') as output:
         pickle.dump(auxfuncs.pickle_keypoints(kp1, des1), output)
@@ -198,18 +201,6 @@ def load_image():
     control = Toplevel(root)
     control_frame = Frame(control)
     control_frame.pack(side="top", fill="both")
-    mode_text = StringVar()
-    mode_text.set('mode: shape')
-    Label(control_frame, textvariable=mode_text, justify=LEFT).pack(side=LEFT)
-
-    def command():
-        global mode
-        mode = not mode
-        if mode:
-            mode_text.set('mode: shape')
-        else:
-            mode_text.set('mode: label')
-    Button(control_frame, text="Change", command=command).pack(side="top")
 
 
 def compute_sift(img):
@@ -249,17 +240,31 @@ def open_mask_creation():
     cv2.imshow(mask_window_name, img2show_mask)
 
 
+def mode_command():
+    global mode
+    mode = not mode
+    if mode:
+        mode_text.set('mode: shape')
+    else:
+        mode_text.set('mode: label')
+
+
 root.title('Prepare')
 center(root)
 frame = Frame(root)
 frame.pack(side="top", fill="both")
 Button(frame, text="Load Image", command=load_image).pack(side="top")
+mode_text = StringVar()
+mode_text.set('mode: shape')
+Label(frame, textvariable=mode_text).pack()
+Button(frame, text="Change", command=mode_command).pack()
 Button(frame, text="Load Mask").pack(side="top")
 Button(frame, text="Create Mask", command=open_mask_creation).pack(side="top")
 Label(frame, text="Circle Radius").pack()
 Scale(frame, from_=0, to=100, orient=HORIZONTAL, variable=circle_radius).pack()
 Button(frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side="top")
 Button(frame, text="Save to File", command=lambda: save(img2show)).pack(side="top")
+Button(frame, text="Close OpenCV Windows", command=cv2.destroyAllWindows).pack(side="top")
 root.mainloop()
 cv2.destroyAllWindows()
 
