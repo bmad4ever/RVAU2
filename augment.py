@@ -58,6 +58,7 @@ db_images_names = []
 #db_image_i = None  # current DB image loaded in iteration
 user_img = None  # image to be augmented
 
+HIGH_RESOLUTION = 1400*1400       #if image resolution is higher than this warn user that may take too much time to compute
 
 def clearDB():
     global db_images_names
@@ -101,12 +102,16 @@ def previewDB():
 
 
 def loadImage():
-    global user_img
+    global user_img,HIGH_RESOLUTION
     filename = filedialog.askopenfilename(filetypes=(("jpeg, png files", "*.jpg *.png"), ("all files", "*.*")),
                                           title="Choose an Image File")
     if filename is not None and filename != '':
         user_img = cv2.imread(filename, cv2.IMREAD_COLOR)
         PrintInfoAndCleanPrevText(filename + ' loaded')  # TODO add algorithm info
+        if user_img.shape[0]*user_img.shape[1] > HIGH_RESOLUTION:
+            PrintInfo('-  WARNING! - ' * 12)
+            PrintInfo('LOADED IMAGE IS VERY LARGE AND MAY TAKE TOO MUCH TIME TO COMPUTE ! ! !')
+            PrintInfo('Consider resizing the image before augmenting.')
 
 def previewLoadImage():
     if user_img is not None:
