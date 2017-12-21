@@ -125,7 +125,7 @@ def scale_image() -> None:
 
 def create_annotation(x, y, text, window):
     global annotations, annotations_img
-    new_annotation = [(math.floor(x * scale), math.floor(y * scale)), text]
+    new_annotation = [(math.floor(x * 1/scale), math.floor(y * 1/scale)), text]
     print("debug - annotation added" + str(new_annotation))
     annotations.append(new_annotation)
     auxfuncs.paint_label(annotations_img, x, y, text, font_scale=font_scale)
@@ -176,7 +176,7 @@ def mouse_callback(event, x, y, flags, param):
             Button(text_frame, text="Add", command=com).pack(side="top")
         elif event == cv2.EVENT_LBUTTONDOWN:
             annotations_img = auxfuncs.detect_label_collision(annotations_img, x, y, annotations, font_scale,
-                                                              scale=scale)
+                                                              scale=1/scale)
 
 
 def save():
