@@ -44,31 +44,31 @@ def alpha_blend(background, foreground, channels=4):
     alpha = cv2.split(foreground)[-1]
     alpha = cv2.merge([alpha] * channels)
     background = cv2.multiply(1.0 - alpha, background)
-    if channels<4:foreground = cv2.merge(cv2.split(foreground)[:channels])
+    if channels < 4:
+        foreground = cv2.merge(cv2.split(foreground)[:channels])
     return cv2.add(foreground, background)
 
 
 ######################################################################################################
 # Label related funcs
 ######################################################################################################
-def paint_label(image, x, y, text, font_scale=1, text_thickness=1, rectangle_border_thickness=1):
+def paint_label(image, x, y, text, font_scale=1, text_thickness=1, rectangle_border_thickness=1,
+                text_color = (0,0,0,1), box_color = (1,1,1,1)):
     size = cv2.getTextSize(text=text, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=font_scale, thickness=text_thickness)
-    fill_color = (1, 1, 0, 1)
-    # border_color = (0, 0, 0)
-    margin = int(size[0][0] / 20)
-    pointer = margin * 2
+    margin = int(font_scale)
+    pointer = int(5*font_scale)
     cv2.rectangle(image,
                   (int(x - size[0][0] / 2 - margin * 2), int(y - size[0][1] - margin * 2 - pointer)),
                   (int(x + size[0][0] / 2 + margin * 2), y - pointer),
-                  fill_color,
+                  box_color,
                   -1)
     triangle = np.array([[x + pointer, y - pointer], [x - pointer, y - pointer], [x, y]])
-    cv2.fillConvexPoly(image, triangle, fill_color)
+    cv2.fillConvexPoly(image, triangle, box_color)
 
     cv2.putText(img=image,
                 text=text,
                 org=(int(x - size[0][0] / 2), y - margin - pointer),
-                color=(0, 0, 0),
+                color=text_color,
                 fontFace=cv2.FONT_HERSHEY_PLAIN,
                 fontScale=font_scale,
                 thickness=text_thickness)

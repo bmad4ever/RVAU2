@@ -1,15 +1,12 @@
 # TODO LIST
-# save drawn image and annotations to files
-# write text on image, need an algorithm to properly scale !!!
-# binary semi automatic selection -> GRAB_CUT
-#   https://www.youtube.com/watch?v=mUpk3zgDAR0
-#   https://docs.opencv.org/trunk/d8/d83/tutorial_py_grabcut.html
-# gather keyPoints/descriptors and remove ones outside selection
-# save/load keyPoints/descriptors
-# select a file with a GUI
-#   https://stackoverflow.com/questions/3579568/choosing-a-file-in-python-with-simple-dialog
-# revert action [+Z]
-# draw commands list
+# IMP! -> create eraser for draw image and mask image (1 barra para o alfa tb serve!, 0 = apagar)
+# IMP! -> allow user to remove annotations (must redrawn annotations images from scratch when remove operation occurs)
+# criar menu explicativo (como funciona adição de de anotações - duplo clique, painting, mask creation, eraser, etc...)
+# document functions, example, what is the purpose of center()? the name does not tell anything
+# remover variaveis/funções/comentarios não usados
+# melhorar GUI (nomes de janelas, e outros)
+# implementar load Mask
+# permitir q o utilizador defina as cores usadas no draw
 
 import cv2
 import numpy as np
@@ -18,62 +15,97 @@ import pickle
 import auxfuncs
 import openfile as of
 from tkinter import *
+import threading
+
+class CvWindowRefresher(threading.Thread):
+    """
+    use an async opencv window that refreshes its content
+    """
+    def __init__(self, windowname,imagebuilderfunc):
+        super(CvWindowRefresher, self).__init__()
+        self.windowname = windowname
+        self.imagebuilderfunc = imagebuilderfunc
+        self.update = True
+        self.final_img = None
+    def run(self):
+        global updateDrawThreadRunning
+        updateDrawThreadRunning = True
+        while self.update:
+            try:
+                self.final_img = self.imagebuilderfunc()
+            except:
+                return
+            cv2.waitKey(1)
+            if cv2.getWindowProperty(self.windowname, 0) >= 0:
+                cv2.imshow(self.windowname, self.final_img)
+            else:
+                self.update = False
+        cv2.destroyWindow(self.windowname)
+        return
+
+    def quit(self):
+        self.update = False
 
 # region MAIN VARIABLES
 
-root = Tk()
+src_img = None  #global variable that stores loaded image
 
-kp1 = None  # SIFT keypoints
-des1 = None  # SIFT descriptors
+root = None                     #tkinter main window
+cvAsyncPrepareWindow = None     #CvWindowRefresher used for annotations, created on load_image()
+cvAsyncMaskWindow = None        #CvWindowRefresher used for drawing a mask, created on TODO
+
+kp1 = None   # SIFT keypoints obtained from src_img
+des1 = None  # SIFT descriptors obtained from src_img
 
 # annotations are position,text tuples that are saved to a file after editing
-annotations = [((12, 0), 'example1'), ((12, 0), 'example2')]
-scale = 0
-img2show = None
-img2show_mask = None
+annotations = []        # stores annotations with the following format -> ((100, 100), 'example1')
+scale = 0               # scale factor applied on the original image. the scaled version is used in prepare and mask windows
 
 # Mask Variables
 mask_drawing = None
 mask_image = None
-mask = None
 mask_x, mask_y = -1, -1
 mask_window_name = None
-circle_radius = IntVar()
-circle_radius.set(10)
+brush_radius = None
 
 # Drawing Variables
-drawing = False  # true if mouse is pressed
-mode = True  # if True, draw rectangle. Press 'm' to toggle to curve
-ix, iy = -1, -1
-font_scale = 1
-
+MODE_BRUSH = 0      # value correspondent to this mode
+MODE_LABEL = 1      # value correspondent to this mode
+MODE_RECTANGLE = 2  # value correspondent to this mode
+prepare_mode_ivar = None         # the current mode used in the prepare window
+drawing = False     # true if mouse is pressed
+ix, iy = -1, -1     # mouse position when button was pressed down (not held)
+font_scale = 1      # the size of the labels/annotations font
 #colors from 0 to 1 (1->255)
 text_tag_background_color = (1, 1, 1, 1)
 text_tag_text_color = (0, 0, 0, 1)
-grab_cut_color_foreground = (1, 0, 0, 0)
-grab_cut_color_background = (0, 0, 1, 0)
 draw_rectangle_color = (0, 1, 0, 0.5)
 draw_circle_color = (1, 0, 0, 0.5)
 draw_circle_color_mask = (1, 1, 1, 1)
 
-# reference image
-src_img = cv2.imread('images/poster_test.jpg', cv2.IMREAD_UNCHANGED)
-# src_width, src_height, channels = tuple(src_img.shape)
 
-
-# reference image scaled down
-# this will be used to avoid slow interaction and to save 'small' info images
-def scale_image():
+def scale_image() -> None:
+    """
+    What does this scale_image() do?
+        1. created a scaled version of src_img -> src_img_scaled
+        2. creates blank draw, annotation and mask layers with the same dimensions of src_img_scaled
+    Why is this needed?
+        Big images can cause a low window refresh rate. Scaling such images down solves the problem.
+    :return:
+    """
     global src_img_scaled, draw_img, annotations_img, scale, mask_image
-    target_length = 400
-    min_size = min(tuple(src_img.shape[1::-1]))
+    target_length = 500     # the bigger dimension should have ~500 pixels max
+    min_size = max(tuple(src_img.shape[1::-1]))
     scale = target_length / min_size
     src_img_scaled = cv2.resize(src_img, (0, 0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+
+    if len(src_img_scaled.shape) < 3:
+        src_img_scaled = cv2.cvtColor(src_img_scaled, cv2.COLOR_GRAY2RGB)
     src_width_scaled, src_height_scaled, channels = tuple(src_img_scaled.shape)
 
-    if channels is not None and channels < 4:
-        b, g, r = cv2.split(src_img_scaled)
-        src_img_scaled = cv2.merge((b, g, r, np.ones((src_width_scaled, src_height_scaled, 1), np.uint8) * 255))
+    if channels == 4:
+        src_img_scaled = cv2.cvtColor(src_img_scaled, cv2.COLOR_RGBA2RGB)
+
     src_img_scaled = src_img_scaled.astype(float) / 255
     # draw image
     draw_img = np.zeros((src_width_scaled, src_height_scaled, 4), np.uint8)
@@ -89,60 +121,45 @@ def scale_image():
 
 # region AUX METHODS
 
-# NOT USED
-def overlay_type_additive():
-    r = cv2.add(src_img_scaled, draw_img)
-    return cv2.add(r, annotations_img)
-
-
-def overlay_type_cv_blend():
-    r = auxfuncs.alpha_blend(src_img_scaled, draw_img)
-    return auxfuncs.alpha_blend(r, annotations_img)
-
-
-def overlay_type_cv_blend_mask():
-    return auxfuncs.alpha_blend(src_img_scaled, mask_image)
-
-
 def create_annotation(x, y, text, window):
-    global annotations, img2show, annotations_img
+    global annotations, annotations_img
     new_annotation = [(math.floor(x * scale), math.floor(y * scale)), text]
     print("debug - annotation added" + str(new_annotation))
     annotations.append(new_annotation)
     auxfuncs.paint_label(annotations_img, x, y, text, font_scale=font_scale)
     window.withdraw()
 
-    img2show = overlay_type_cv_blend()
-    cv2.imshow(main_window_name, img2show)
-
-    cv2.setMouseCallback(main_window_name, mouse_callback)
-
-
-def mouse_callback_none(event, x, y, flags, param):
-    return None
-
-
 # mouse callback function
 def mouse_callback(event, x, y, flags, param):
-    global ix, iy, drawing, mode, scale, img2show, draw_img
+    global ix, iy, drawing, prepare_mode_ivar, scale, draw_img, brush_radius
 
-    if mode:
+    if prepare_mode_ivar.get() == MODE_BRUSH:
+        if event == cv2.EVENT_LBUTTONDOWN:
+            drawing = True
+            #ix, iy = x, y
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if drawing:
+                cv2.circle(draw_img, (x, y), brush_radius.get(), draw_circle_color, -1)
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            drawing = False
+            cv2.circle(draw_img, (x, y), brush_radius.get(), draw_circle_color, -1)
+
+    elif prepare_mode_ivar.get() == MODE_RECTANGLE:
         if event == cv2.EVENT_LBUTTONDOWN:
             drawing = True
             ix, iy = x, y
 
         elif event == cv2.EVENT_MOUSEMOVE:
             if drawing:
-                #cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
-                cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
-                img2show = overlay_type_cv_blend()
-                cv2.imshow(main_window_name, img2show)
+                cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
 
         elif event == cv2.EVENT_LBUTTONUP:
             drawing = False
-            # cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
-            cv2.circle(draw_img, (x, y), 5, draw_circle_color, -1)
-    else:
+            cv2.rectangle(draw_img, (ix, iy), (x, y), draw_rectangle_color, -1)
+
+    elif prepare_mode_ivar.get() == MODE_LABEL:
         if event == cv2.EVENT_LBUTTONDBLCLK:
             text_window = Toplevel(root)
             text_frame = Frame(text_window)
@@ -156,12 +173,11 @@ def mouse_callback(event, x, y, flags, param):
             Button(text_frame, text="Add", command=com).pack(side="top")
 
 
-def save(img):
+def save():
     if kp1 is None or des1 is None:
         print("Missing keypoints or descriptors")
         return
 
-    # src_img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     if len(kp1) < 4:
         print("There must be at least 4 key points")
         return
@@ -171,12 +187,6 @@ def save(img):
         pickle.dump(annotations, output, pickle.HIGHEST_PROTOCOL)  # annotations position are relative to src_img size
         pickle.dump(draw_img, output, pickle.HIGHEST_PROTOCOL)  # visual annotations as user draws in a scaled down img
         pickle.dump(src_img, output, pickle.HIGHEST_PROTOCOL)  # only need size but saving the entire image can be useful for debuging
-
-# endregion AUX METHODS
-
-
-# region Main Program Code
-
 
 def center(top_level):
     top_level.update_idletasks()
@@ -189,22 +199,53 @@ def center(top_level):
 
 
 def load_image():
-    global src_img, img2show, main_window_name, mode
+    global annotations, src_img #, img2show, main_window_name, mode,cvAsyncPrepareWindow
+
+    annotations = []    # clear annotations from previous images
+
+    #Close active windows
+    if cvAsyncPrepareWindow is not None:
+        cvAsyncPrepareWindow.quit()
+    if cvAsyncMaskWindow is not None:
+        cvAsyncMaskWindow.quit()
+
     filename = of.get_file()
-    src_img = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
+    if filename is None or filename == '':
+        return
+
+    src_img = cv2.imread(filename, cv2.IMREAD_COLOR)
     scale_image()
+
+    prepare_image()
+
+
+def prepare_image():
+    global cvAsyncPrepareWindow, src_img
+
+    if src_img is None:
+        warning_window = Toplevel(root)
+        Label(warning_window, text="No Image Loaded!", justify=LEFT).pack(side=LEFT)
+        Button(warning_window, text=" OK ", command=warning_window.destroy).pack(side=LEFT)
+        return
+
+    def overlay_type_cv_blend():
+        global src_img_scaled, draw_img, annotations_img
+        r = auxfuncs.alpha_blend(src_img_scaled, draw_img, channels=3)
+        return auxfuncs.alpha_blend(r, annotations_img, channels=3)
+
+    if cvAsyncPrepareWindow is not None:
+        cvAsyncPrepareWindow.quit()
+
     main_window_name = 'Prepare Program'
     cv2.namedWindow(main_window_name)
     cv2.setMouseCallback(main_window_name, mouse_callback)
-    img2show = overlay_type_cv_blend()
-    cv2.imshow(main_window_name, img2show)
-    control = Toplevel(root)
-    control_frame = Frame(control)
-    control_frame.pack(side="top", fill="both")
+    cv2.imshow(main_window_name, overlay_type_cv_blend() )
 
+    cvAsyncPrepareWindow = CvWindowRefresher(main_window_name,overlay_type_cv_blend)
+    cvAsyncPrepareWindow.start()
 
 def compute_sift(img):
-    global kp1, des1, mask, mask_image, scale
+    global kp1, des1, mask_image, scale
     img_test = img.copy()
     sift = cv2.xfeatures2d.SIFT_create()
     mask = mask_image.copy() * 255
@@ -216,55 +257,110 @@ def compute_sift(img):
 
 
 def mask_mouse_callback(event, x, y, flags, param):
-    global mask_drawing, mask_image, circle_radius, mask_y, mask_x, img2show_mask
+    global mask_drawing, mask_image, brush_radius, mask_y, mask_x#, img2show_mask
     if event == cv2.EVENT_LBUTTONDOWN:
         mask_drawing = True
         mask_x, mask_y = x, y
 
     elif event == cv2.EVENT_MOUSEMOVE:
         if mask_drawing:
-            cv2.circle(mask_image, (x, y), circle_radius.get(), draw_circle_color_mask, -1)
-            img2show_mask = overlay_type_cv_blend_mask()
-            cv2.imshow(mask_window_name, img2show_mask)
+            cv2.circle(mask_image, (x, y), brush_radius.get(), draw_circle_color_mask, -1)
 
     elif event == cv2.EVENT_LBUTTONUP:
         mask_drawing = False
 
 
 def open_mask_creation():
-    global mask_window_name, img2show_mask
+    global cvAsyncMaskWindow
+
+    if src_img is None:
+        warning_window = Toplevel(root)
+        Label(warning_window, text="No Image Loaded!", justify=LEFT).pack(side=LEFT)
+        Button(warning_window, text=" OK ", command=warning_window.destroy).pack(side=LEFT)
+        return
+
+    def overlay_type_cv_blend_mask():
+        global src_img_scaled,mask_image
+        return auxfuncs.alpha_blend(src_img_scaled, mask_image, channels=3)
+
+    if cvAsyncMaskWindow is not None:
+        cvAsyncMaskWindow.quit()
+
     mask_window_name = 'Mask Creation'
     cv2.namedWindow(mask_window_name)
     cv2.setMouseCallback(mask_window_name, mask_mouse_callback)
     img2show_mask = overlay_type_cv_blend_mask()
     cv2.imshow(mask_window_name, img2show_mask)
 
+    cvAsyncMaskWindow = CvWindowRefresher(mask_window_name, overlay_type_cv_blend_mask)
+    cvAsyncMaskWindow.start()
 
-def mode_command():
-    global mode
-    mode = not mode
-    if mode:
-        mode_text.set('mode: shape')
-    else:
-        mode_text.set('mode: label')
+# endregion AUX METHODS
+
+#TODO add main here
 
 
+root = Tk()
 root.title('Prepare')
-center(root)
-frame = Frame(root)
-frame.pack(side="top", fill="both")
-Button(frame, text="Load Image", command=load_image).pack(side="top")
-mode_text = StringVar()
-mode_text.set('mode: shape')
-Label(frame, textvariable=mode_text).pack()
-Button(frame, text="Change", command=mode_command).pack()
-Button(frame, text="Load Mask").pack(side="top")
-Button(frame, text="Create Mask", command=open_mask_creation).pack(side="top")
-Label(frame, text="Circle Radius").pack()
-Scale(frame, from_=0, to=100, orient=HORIZONTAL, variable=circle_radius).pack()
-Button(frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side="top")
-Button(frame, text="Save to File", command=lambda: save(img2show)).pack(side="top")
-Button(frame, text="Close OpenCV Windows", command=cv2.destroyAllWindows).pack(side="top")
+#get screen dimensions
+ws = root.winfo_screenwidth() # width of the screen
+hs = root.winfo_screenheight() # height of the screen
+
+header_frame = Frame(root)
+header_frame.pack(side="top", fill="both")
+Button(header_frame, text=" Load Image ", command=load_image).pack(side=LEFT,fill="both", expand="yes")
+Button(header_frame, text=" Load Mask ").pack(side=LEFT, fill="both", expand="yes")
+Button(header_frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side=LEFT, fill="both", expand="yes")
+Button(header_frame, text="Save to File", command=save).pack(side=LEFT, fill="both", expand="yes")
+Button(header_frame, text="Close OpenCV Windows", command=cv2.destroyAllWindows).pack(side="top")
+
+#Label(root, text='_'*100).pack(side=TOP, fill="both", expand="yes")
+
+prepare_frame = Frame(root)
+prepare_frame.pack(side="top", fill="both")
+Button(prepare_frame, text="Open/Close Prepare Image", command=prepare_image).pack(side=LEFT,fill="both", expand="yes")
+Button(prepare_frame, text="Open/Close Custom Mask Editor", command=open_mask_creation).pack(side=LEFT, fill="both", expand="yes")
+Button(prepare_frame, text="HELP", command=None).pack(side=LEFT, fill="both", expand="yes")
+
+#Prepare image Options
+#mode_text = StringVar()
+#mode_text.set('mode: shape')
+#Label(root, textvariable=mode_text).pack()
+#Button(root, text="     Change     ", command=mode_command).pack()
+
+prepare_mode_ivar = IntVar()
+prepare_mode_ivar.set(1)
+prepare_mode_frame = Frame(root)
+prepare_mode_frame.pack(side="top", fill="both")
+Label(prepare_mode_frame, text='mode').pack(side="left", anchor=W)
+Radiobutton(prepare_mode_frame, text="brush", variable=prepare_mode_ivar, value=0).pack(side="left", anchor=W)
+Radiobutton(prepare_mode_frame, text="rectangles", variable=prepare_mode_ivar, value=2).pack(side="left", anchor=W)
+Radiobutton(prepare_mode_frame, text="label", variable=prepare_mode_ivar, value=1).pack(side="left", anchor=W)
+
+#Brush Options
+brush_radius = IntVar()
+brush_radius.set(5)
+preview_brush_bvar = BooleanVar()
+def preview_paintbrush_size(from_toggle):
+    if preview_brush_bvar.get():
+        preview_img = np.zeros((200,200,1),np.float32)
+        cv2.circle(preview_img, (100, 100), brush_radius.get(), 1, -1)
+        cv2.imshow('brush preview', preview_img)
+        if from_toggle:
+            cv2.moveWindow('brush preview', 0, 25*5+30);
+    else:
+        cv2.destroyWindow('brush preview')
+circle_frame = Frame(root)
+circle_frame.pack(side="top", fill="both")
+Label(circle_frame, text="\n Circle Radius  ").pack(side=LEFT, fill="both")
+Scale(circle_frame, from_=0, to=100, orient=HORIZONTAL, variable=brush_radius, command=lambda v: preview_paintbrush_size(False)).pack(side=LEFT, fill="both", expand="yes")
+Label(circle_frame, text="\nPreview Brush").pack(side=LEFT, fill="both")
+Checkbutton(circle_frame, variable=preview_brush_bvar, command=lambda: preview_paintbrush_size(True)).pack(side=LEFT, anchor=S)
+
+
+center(root)   #center window content
+root.geometry('%dx%d+%d+%d' % (ws, 25*5, -8, 0))    #place window on this screen position
+
 root.mainloop()
 cv2.destroyAllWindows()
 
