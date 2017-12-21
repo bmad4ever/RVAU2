@@ -187,7 +187,9 @@ def save():
         print("There must be at least 4 key points")
         return
 
-    with open('testdata.pkl', 'wb') as output:
+    file = of.save_file()
+
+    with file as output:
         pickle.dump(auxfuncs.pickle_keypoints(kp1, des1), output)
         pickle.dump(annotations, output, pickle.HIGHEST_PROTOCOL)  # annotations position are relative to src_img size
         pickle.dump(draw_img, output, pickle.HIGHEST_PROTOCOL)  # visual annotations as user draws in a scaled down img

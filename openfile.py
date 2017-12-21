@@ -8,3 +8,7 @@ def get_file():
     file_types = [('Image files', ('.png', '.jpg'))]
     filename = filedialog.askopenfilename(filetypes=file_types, title="Choose an Image File")
     return filename
+
+
+def save_file():
+    return filedialog.asksaveasfile(mode='w', defaultextension=".pkl")
