@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import math
 
 ######################################################################################################
 # Delicately created by Laird Foret about almost 5 years ago
@@ -74,26 +75,30 @@ def paint_label(image, x, y, text, font_scale=1, text_thickness=1, rectangle_bor
                 thickness=text_thickness)
 
 
-def remove_label(image, annotation_to_remove, annotations_array):
+def remove_label(image, annotation_to_remove, annotations_array, scale):
     annotations_array.remove(annotation_to_remove)
-    print(len(annotations_array))
-    image = np.zeros((len(image), len(image[0]), 4), np.uint8)
+    image = np.zeros((image.shape[0], image.shape[1], 4), np.uint8)
+    image = image.astype(float)
     for annotation in annotations_array:
-        paint_label(image, annotation[0][0], annotation[0][1], annotation[1])
+        paint_label(image, math.floor(annotation[0][0] / scale), math.floor(annotation[0][1] / scale), annotation[1])
     return image
 
 
-def detect_label_collision(image, x, y, annotations_array, font_scale=1, text_thickness=1):
+def detect_label_collision(image, x, y, annotations_array, font_scale=1, text_thickness=1, scale=1):
+    x *= scale
+    y *= scale
+    font_scale *= scale
     for annotation in annotations_array:
         size = cv2.getTextSize(text=annotation[1], fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=font_scale,
-                               thickness=text_thickness)
+                               thickness=int(text_thickness))
+        pointer = int(5 * font_scale)
         margin = int(font_scale)
         left = int(annotation[0][0] - size[0][0] / 2 - margin * 2)
-        top = annotation[0][1]
+        top = annotation[0][1] - pointer - size[0][1]
         right = int(annotation[0][0] + size[0][0] / 2 + margin * 2)
-        down = annotation[0][1] + size[0][1]
+        down = annotation[0][1] - pointer
         if left <= x <= right and top <= y <= down:
-            remove_label(image, annotation, annotations_array)
+            image = remove_label(image, annotation, annotations_array, scale)
     return image
         
 ######################################################################################################

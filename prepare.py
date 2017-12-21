@@ -175,7 +175,8 @@ def mouse_callback(event, x, y, flags, param):
                 create_annotation(x, y, text_var.get(), text_window)
             Button(text_frame, text="Add", command=com).pack(side="top")
         elif event == cv2.EVENT_LBUTTONDOWN:
-            auxfuncs.detect_label_collision(annotations_img, x, y, annotations, font_scale)
+            annotations_img = auxfuncs.detect_label_collision(annotations_img, x, y, annotations, font_scale,
+                                                              scale=scale)
 
 
 def save():
