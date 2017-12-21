@@ -11,4 +11,4 @@ def get_file():
 
 
 def save_file():
-    return filedialog.asksaveasfile(mode='w', defaultextension=".pkl")
+    return filedialog.asksaveasfile(mode='wb', defaultextension=".pkl")
