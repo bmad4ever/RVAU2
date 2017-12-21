@@ -321,11 +321,16 @@ def open_mask_creation():
 
 
 def change_brush():
-    global draw_circle_color_mask
+    global draw_circle_color_mask, draw_circle_color
     if erase_brush.get():
         draw_circle_color_mask = eraser_circle_color_mask
+        draw_circle_color = eraser_circle_color_mask
     else:
         draw_circle_color_mask = brush_circle_color_mask
+        draw_circle_color = (float(brush_color[0][0]) / 255,
+                             float(brush_color[0][1]) / 255,
+                             float(brush_color[0][2]) / 255,
+                             0.5)
 
 
 # endregion AUX METHODS
