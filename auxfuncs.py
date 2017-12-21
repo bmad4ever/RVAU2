@@ -76,9 +76,25 @@ def paint_label(image, x, y, text, font_scale=1, text_thickness=1, rectangle_bor
 
 def remove_label(image, annotation_to_remove, annotations_array):
     annotations_array.remove(annotation_to_remove)
+    print(len(annotations_array))
     image = np.zeros((len(image), len(image[0]), 4), np.uint8)
     for annotation in annotations_array:
         paint_label(image, annotation[0][0], annotation[0][1], annotation[1])
+    return image
+
+
+def detect_label_collision(image, x, y, annotations_array, font_scale=1, text_thickness=1):
+    for annotation in annotations_array:
+        size = cv2.getTextSize(text=annotation[1], fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=font_scale,
+                               thickness=text_thickness)
+        margin = int(font_scale)
+        left = int(annotation[0][0] - size[0][0] / 2 - margin * 2)
+        top = annotation[0][1]
+        right = int(annotation[0][0] + size[0][0] / 2 + margin * 2)
+        down = annotation[0][1] + size[0][1]
+        if left <= x <= right and top <= y <= down:
+            remove_label(image, annotation, annotations_array)
+    return image
         
 ######################################################################################################
 # Window related funcs

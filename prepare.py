@@ -1,5 +1,4 @@
 # TODO LIST
-# IMP! -> create eraser for draw image and mask image (1 barra para o alfa tb serve!, 0 = apagar)
 # IMP! -> allow user to remove annotations (must redrawn annotations images from scratch when remove operation occurs)
 # criar menu explicativo (como funciona adição de de anotações - duplo clique, painting, mask creation, eraser, etc...)
 # document functions, example, what is the purpose of center()? the name does not tell anything
@@ -123,6 +122,7 @@ def scale_image() -> None:
 
 # region AUX METHODS
 
+
 def create_annotation(x, y, text, window):
     global annotations, annotations_img
     new_annotation = [(math.floor(x * scale), math.floor(y * scale)), text]
@@ -131,9 +131,10 @@ def create_annotation(x, y, text, window):
     auxfuncs.paint_label(annotations_img, x, y, text, font_scale=font_scale)
     window.withdraw()
 
+
 # mouse callback function
 def mouse_callback(event, x, y, flags, param):
-    global ix, iy, drawing, prepare_mode_ivar, scale, draw_img, brush_radius
+    global ix, iy, drawing, prepare_mode_ivar, scale, draw_img, brush_radius, annotations, annotations_img
 
     if prepare_mode_ivar.get() == MODE_BRUSH:
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -173,6 +174,8 @@ def mouse_callback(event, x, y, flags, param):
             def com():
                 create_annotation(x, y, text_var.get(), text_window)
             Button(text_frame, text="Add", command=com).pack(side="top")
+        elif event == cv2.EVENT_LBUTTONDOWN:
+            auxfuncs.detect_label_collision(annotations_img, x, y, annotations, font_scale)
 
 
 def save():
@@ -190,6 +193,7 @@ def save():
         pickle.dump(draw_img, output, pickle.HIGHEST_PROTOCOL)  # visual annotations as user draws in a scaled down img
         pickle.dump(src_img, output, pickle.HIGHEST_PROTOCOL)  # only need size but saving the entire image can be useful for debuging
 
+
 def center(top_level):
     top_level.update_idletasks()
     w = top_level.winfo_screenwidth()
@@ -198,6 +202,17 @@ def center(top_level):
     x = w/2 - size[0]/2
     y = h/2 - size[1]/2
     top_level.geometry("%dx%d+%d+%d" % (size + (x, y)))
+
+
+def close_all_windows():
+    global cvAsyncPrepareWindow, cvAsyncMaskWindow
+    if cvAsyncPrepareWindow is not None:
+        cvAsyncPrepareWindow.quit()
+        cvAsyncPrepareWindow = None
+    if cvAsyncMaskWindow is not None:
+        cvAsyncMaskWindow.quit()
+        cvAsyncMaskWindow = None
+    cv2.destroyAllWindows()
 
 
 def load_image():
@@ -327,7 +342,7 @@ Button(header_frame, text=" Load Image ", command=load_image).pack(side=LEFT,fil
 Button(header_frame, text=" Load Mask ").pack(side=LEFT, fill="both", expand="yes")
 Button(header_frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side=LEFT, fill="both", expand="yes")
 Button(header_frame, text="Save to File", command=save).pack(side=LEFT, fill="both", expand="yes")
-Button(header_frame, text="Close OpenCV Windows", command=cv2.destroyAllWindows).pack(side="top")
+Button(header_frame, text="Close OpenCV Windows", command=close_all_windows).pack(side="top")
 
 #Label(root, text='_'*100).pack(side=TOP, fill="both", expand="yes")
 
