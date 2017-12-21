@@ -82,6 +82,8 @@ text_tag_text_color = (0, 0, 0, 1)
 draw_rectangle_color = (0, 1, 0, 0.5)
 draw_circle_color = (1, 0, 0, 0.5)
 draw_circle_color_mask = (1, 1, 1, 1)
+brush_circle_color_mask = (1, 1, 1, 1)
+eraser_circle_color_mask = (0, 0, 0, 0)
 
 
 def scale_image() -> None:
@@ -235,6 +237,8 @@ def prepare_image():
 
     if cvAsyncPrepareWindow is not None:
         cvAsyncPrepareWindow.quit()
+        cvAsyncPrepareWindow = None
+        return
 
     main_window_name = 'Prepare Program'
     cv2.namedWindow(main_window_name)
@@ -285,6 +289,8 @@ def open_mask_creation():
 
     if cvAsyncMaskWindow is not None:
         cvAsyncMaskWindow.quit()
+        cvAsyncMaskWindow = None
+        return
 
     mask_window_name = 'Mask Creation'
     cv2.namedWindow(mask_window_name)
@@ -294,6 +300,15 @@ def open_mask_creation():
 
     cvAsyncMaskWindow = CvWindowRefresher(mask_window_name, overlay_type_cv_blend_mask)
     cvAsyncMaskWindow.start()
+
+
+def change_brush():
+    global draw_circle_color_mask
+    if erase_brush.get():
+        draw_circle_color_mask = eraser_circle_color_mask
+    else:
+        draw_circle_color_mask = brush_circle_color_mask
+
 
 # endregion AUX METHODS
 
@@ -341,6 +356,8 @@ Radiobutton(prepare_mode_frame, text="label", variable=prepare_mode_ivar, value=
 brush_radius = IntVar()
 brush_radius.set(5)
 preview_brush_bvar = BooleanVar()
+erase_brush = BooleanVar()
+erase_brush.set(False)
 def preview_paintbrush_size(from_toggle):
     if preview_brush_bvar.get():
         preview_img = np.zeros((200,200,1),np.float32)
@@ -354,6 +371,8 @@ circle_frame = Frame(root)
 circle_frame.pack(side="top", fill="both")
 Label(circle_frame, text="\n Circle Radius  ").pack(side=LEFT, fill="both")
 Scale(circle_frame, from_=0, to=100, orient=HORIZONTAL, variable=brush_radius, command=lambda v: preview_paintbrush_size(False)).pack(side=LEFT, fill="both", expand="yes")
+Label(circle_frame, text="\nErase Brush").pack(side=LEFT, fill="both")
+Checkbutton(circle_frame, variable=erase_brush, command=change_brush).pack(side=LEFT, anchor=S)
 Label(circle_frame, text="\nPreview Brush").pack(side=LEFT, fill="both")
 Checkbutton(circle_frame, variable=preview_brush_bvar, command=lambda: preview_paintbrush_size(True)).pack(side=LEFT, anchor=S)
 
