@@ -1,11 +1,10 @@
 # TODO LIST
-# IMP! -> allow user to remove annotations (must redrawn annotations images from scratch when remove operation occurs)
 # criar menu explicativo (como funciona adição de de anotações - duplo clique, painting, mask creation, eraser, etc...)
-# document functions, example, what is the purpose of center()? the name does not tell anything
-# remover variaveis/funções/comentarios não usados
-# melhorar GUI (nomes de janelas, e outros)
-# implementar load Mask
-# permitir q o utilizador defina as cores usadas no draw
+# document functions, example, what is the purpose of center()? the name does not tell anything (ninguém faz isso...)
+# remover variaveis/funções/comentarios não usados (CAGA)
+# melhorar GUI (nomes de janelas, e outros) (JÁ TÁ)
+# implementar load Mask ROMANO
+# permitir q o utilizador defina as cores usadas no draw ROMANO
 
 import cv2
 import numpy as np
@@ -14,6 +13,7 @@ import pickle
 import auxfuncs
 import openfile as of
 from tkinter import *
+from tkinter.colorchooser import *
 import threading
 
 class CvWindowRefresher(threading.Thread):
@@ -376,6 +376,8 @@ brush_radius.set(5)
 preview_brush_bvar = BooleanVar()
 erase_brush = BooleanVar()
 erase_brush.set(False)
+
+
 def preview_paintbrush_size(from_toggle):
     if preview_brush_bvar.get():
         preview_img = np.zeros((200,200,1),np.float32)
@@ -385,6 +387,8 @@ def preview_paintbrush_size(from_toggle):
             cv2.moveWindow('brush preview', 0, 25*5+30);
     else:
         cv2.destroyWindow('brush preview')
+
+
 circle_frame = Frame(root)
 circle_frame.pack(side="top", fill="both")
 Label(circle_frame, text="\n Circle Radius  ").pack(side=LEFT, fill="both")
@@ -393,6 +397,45 @@ Label(circle_frame, text="\nErase Brush").pack(side=LEFT, fill="both")
 Checkbutton(circle_frame, variable=erase_brush, command=change_brush).pack(side=LEFT, anchor=S)
 Label(circle_frame, text="\nPreview Brush").pack(side=LEFT, fill="both")
 Checkbutton(circle_frame, variable=preview_brush_bvar, command=lambda: preview_paintbrush_size(True)).pack(side=LEFT, anchor=S)
+
+
+def change_rectangle_color():
+    global rectangle_color, rectangle_color_label, draw_rectangle_color
+    rectangle_color = askcolor()
+    rectangle_color_label.config(background=rectangle_color[1])
+    draw_rectangle_color = (float(rectangle_color[0][2]) / 255,
+                            float(rectangle_color[0][1]) / 255,
+                            float(rectangle_color[0][0]) / 255,
+                            0.5)
+
+
+def change_brush_color():
+    global brush_color, brush_color_label, draw_circle_color
+    brush_color = askcolor()
+    brush_color_label.config(background=brush_color[1])
+    draw_circle_color = (float(brush_color[0][2]) / 255,
+                         float(brush_color[0][1]) / 255,
+                         float(brush_color[0][0]) / 255,
+                         0.5)
+
+
+# Color picker Frame
+color_frame = Frame(root)
+color_frame.pack(side="top", fill="both")
+rectangle_color = '#%02x%02x%02x' % (int(draw_rectangle_color[0] * 255),
+                                     int(draw_rectangle_color[1] * 255),
+                                     int(draw_rectangle_color[2] * 255))
+brush_color = '#%02x%02x%02x' % (int(draw_circle_color[2] * 255),
+                                 int(draw_circle_color[1] * 255),
+                                 int(draw_circle_color[0] * 255))
+rectangle_color_label = Label(color_frame, text="   ", background=rectangle_color)
+rectangle_color_label.pack()
+Label(color_frame, text="\n Rectangle Color").pack()
+Button(color_frame, text="Pick Color", command=change_rectangle_color).pack()
+brush_color_label = Label(color_frame, text="   ", background=brush_color)
+brush_color_label.pack()
+Label(color_frame, text="\n Brush Color").pack()
+Button(color_frame, text="Pick Color", command=change_brush_color).pack()
 
 
 center(root)   #center window content
