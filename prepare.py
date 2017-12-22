@@ -367,8 +367,6 @@ def load_mask():
 
 # endregion AUX METHODS
 
-#TODO add main here
-
 
 root = Tk()
 root.title('Prepare')
@@ -395,6 +393,7 @@ def help_win():
     Label(help_frame, text="Instructions").pack()
     Label(help_frame, text="Use the \"Load Image\" button to use an image of your choosing.").pack()
     Label(help_frame, text="You can add labels by selecting the label radio button and double click the image in the prepare window.").pack()
+    Label(help_frame, text="To remove a label just left click the selected label.").pack()
     Label(help_frame, text="You can also paint the image with a brush and rectangles. Color can be chosen.").pack()
     Label(help_frame, text="After the image has been loaded you can create a mask using the custom mask editor.").pack()
     Label(help_frame, text="Use the brush to select the are of the image you want to analyse.").pack()
