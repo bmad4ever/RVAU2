@@ -1,8 +1,8 @@
 # TODO LIST
 # criar menu explicativo (como funciona adição de de anotações - duplo clique, painting, mask creation, eraser, etc...)
-# document functions, example, what is the purpose of center()? the name does not tell anything (ninguém faz isso...)
-# remover variaveis/funções/comentarios não usados (CAGA)
-# melhorar GUI (nomes de janelas, e outros) (JÁ TÁ)
+# document functions, example, what is the purpose of center()? the name does not tell anything
+# remover variaveis/funções/comentarios não usados
+# melhorar GUI (nomes de janelas, e outros)
 # implementar load Mask ROMANO
 # permitir q o utilizador defina as cores usadas no draw ROMANO
 
@@ -122,6 +122,12 @@ def scale_image() -> None:
 
 
 def create_annotation(x, y, text, window):
+    """ Creates a new annotation in the specified position with a text associated.
+    x -- the x coordinate of the position
+    y -- the y coordinate of the position
+    text -- the text associated with the label
+    window -- the window associated
+    """
     global annotations, annotations_img
     new_annotation = [(math.floor(x * 1/scale), math.floor(y * 1/scale)), text]
     print("debug - annotation added" + str(new_annotation))
@@ -130,8 +136,12 @@ def create_annotation(x, y, text, window):
     window.withdraw()
 
 
-# mouse callback function
 def mouse_callback(event, x, y, flags, param):
+    """ Mouse callback function to use mouse events.
+    event -- the event fired
+    x -- the x coordinate of the mouse
+    y -- the y coordinate of the mouse
+    """
     global ix, iy, drawing, prepare_mode_ivar, scale, draw_img, brush_radius, annotations, annotations_img
 
     if prepare_mode_ivar.get() == MODE_BRUSH:
@@ -178,6 +188,7 @@ def mouse_callback(event, x, y, flags, param):
 
 
 def save():
+    """ Function that saves the data in a file. """
     if kp1 is None or des1 is None:
         print("Missing keypoints or descriptors")
         return
@@ -196,6 +207,7 @@ def save():
 
 
 def center(top_level):
+    """ Centers a window in the screen. """
     top_level.update_idletasks()
     w = top_level.winfo_screenwidth()
     h = top_level.winfo_screenheight()
@@ -206,6 +218,7 @@ def center(top_level):
 
 
 def close_all_windows():
+    """ Closes all windows in the application. """
     global cvAsyncPrepareWindow, cvAsyncMaskWindow
     if cvAsyncPrepareWindow is not None:
         cvAsyncPrepareWindow.quit()
@@ -217,6 +230,7 @@ def close_all_windows():
 
 
 def load_image():
+    """ Function that loads an image and displays it in the prepare window. """
     global annotations, src_img #, img2show, main_window_name, mode,cvAsyncPrepareWindow
 
     annotations = []    # clear annotations from previous images
@@ -238,6 +252,7 @@ def load_image():
 
 
 def prepare_image():
+    """ Displays the image loaded in load_image. """
     global cvAsyncPrepareWindow, src_img
 
     if src_img is None:
@@ -264,7 +279,11 @@ def prepare_image():
     cvAsyncPrepareWindow = CvWindowRefresher(main_window_name,overlay_type_cv_blend)
     cvAsyncPrepareWindow.start()
 
+
 def compute_sift(img):
+    """ Utilizes the sift algorithm to create keypoints in the image and displays it.
+    img -- the img to be analysed
+    """
     global kp1, des1, mask_image, scale
     img_test = img.copy()
     sift = cv2.xfeatures2d.SIFT_create()
@@ -277,6 +296,11 @@ def compute_sift(img):
 
 
 def mask_mouse_callback(event, x, y, flags, param):
+    """ Mouse callback function to use mouse events in the mask window.
+    event -- the event fired
+    x -- the x coordinate of the mouse
+    y -- the y coordinate of the mouse
+    """
     global mask_drawing, mask_image, brush_radius, mask_y, mask_x#, img2show_mask
     if event == cv2.EVENT_LBUTTONDOWN:
         mask_drawing = True
@@ -291,6 +315,7 @@ def mask_mouse_callback(event, x, y, flags, param):
 
 
 def open_mask_creation():
+    """ Opens the mask creation window that enables the user to select the desired region for the keypoint algorithm. """
     global cvAsyncMaskWindow
 
     if src_img is None:
@@ -319,6 +344,7 @@ def open_mask_creation():
 
 
 def change_brush():
+    """ This function switches the brush between painting and erasing modes. """
     global draw_circle_color_mask, draw_circle_color
     if erase_brush.get():
         draw_circle_color_mask = eraser_circle_color_mask
@@ -330,6 +356,14 @@ def change_brush():
                              float(brush_color[0][2]) / 255,
                              0.5)
 
+
+def load_mask():
+    """ loads the mask from an external file (Not finished). """
+    global mask_image
+    filename = of.get_file()
+    if filename is None or filename == '':
+        return
+    mask_image = cv2.imread(filename, cv2.IMREAD_COLOR)
 
 # endregion AUX METHODS
 
@@ -345,7 +379,7 @@ hs = root.winfo_screenheight() # height of the screen
 header_frame = Frame(root)
 header_frame.pack(side="top", fill="both")
 Button(header_frame, text=" Load Image ", command=load_image).pack(side=LEFT,fill="both", expand="yes")
-Button(header_frame, text=" Load Mask ").pack(side=LEFT, fill="both", expand="yes")
+Button(header_frame, text=" Load Mask ", command=load_mask).pack(side=LEFT, fill="both", expand="yes")
 Button(header_frame, text="Compute KeyPoint", command=lambda: compute_sift(src_img)).pack(side=LEFT, fill="both", expand="yes")
 Button(header_frame, text="Save to File", command=save).pack(side=LEFT, fill="both", expand="yes")
 Button(header_frame, text="Close OpenCV Windows", command=close_all_windows).pack(side="top")
@@ -363,7 +397,7 @@ def help_win():
     Label(help_frame, text="You can add labels by selecting the label radio button and double click the image in the prepare window.").pack()
     Label(help_frame, text="You can also paint the image with a brush and rectangles. Color can be chosen.").pack()
     Label(help_frame, text="After the image has been loaded you can create a mask using the custom mask editor.").pack()
-    Label(help_frame, text="Use the brush to extract the are of the image you want to analyse.").pack()
+    Label(help_frame, text="Use the brush to select the are of the image you want to analyse.").pack()
     Label(help_frame, text="Use the \"Compute KeyPoint\" button to run the keyPoint detection algorithm.").pack()
     Label(help_frame, text="Use the \"Save to File\" button to save the data after running the algorithm.").pack()
 
@@ -398,6 +432,9 @@ erase_brush.set(False)
 
 
 def preview_paintbrush_size(from_toggle):
+    """ Window for the user to get a preview over the size of the paintbrush.
+    from_toggle -- the toggle flag that indicates of the window is open or not.
+    """
     if preview_brush_bvar.get():
         preview_img = np.zeros((200,200,1),np.float32)
         cv2.circle(preview_img, (100, 100), brush_radius.get(), 1, -1)
@@ -419,6 +456,7 @@ Checkbutton(circle_frame, variable=preview_brush_bvar, command=lambda: preview_p
 
 
 def change_rectangle_color():
+    """ Changes the rectangle brush color to the current selected color. """
     global rectangle_color, rectangle_color_label, draw_rectangle_color
     rectangle_color = askcolor()
     if rectangle_color[0] is None:
@@ -431,6 +469,7 @@ def change_rectangle_color():
 
 
 def change_brush_color():
+    """ Changes the paintbrush color to the current selected color. """
     global brush_color, brush_color_label, draw_circle_color
     brush_color = askcolor()
     if brush_color[0] is None:
