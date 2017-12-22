@@ -24,12 +24,10 @@ class CvWindowRefresher(threading.Thread):
         super(CvWindowRefresher, self).__init__()
         self.windowname = windowname
         self.imagebuilderfunc = imagebuilderfunc
-        self.update = True
+        self.running = True
         self.final_img = None
     def run(self):
-        global updateDrawThreadRunning
-        updateDrawThreadRunning = True
-        while self.update:
+        while self.running:
             try:
                 self.final_img = self.imagebuilderfunc()
             except:
@@ -38,12 +36,12 @@ class CvWindowRefresher(threading.Thread):
             if cv2.getWindowProperty(self.windowname, 0) >= 0:
                 cv2.imshow(self.windowname, self.final_img)
             else:
-                self.update = False
+                self.running = False
         cv2.destroyWindow(self.windowname)
         return
 
     def quit(self):
-        self.update = False
+        self.running = False
 
 # region MAIN VARIABLES
 
@@ -224,9 +222,9 @@ def load_image():
     annotations = []    # clear annotations from previous images
 
     #Close active windows
-    if cvAsyncPrepareWindow is not None:
+    if cvAsyncPrepareWindow is not None and cvAsyncPrepareWindow.update:
         cvAsyncPrepareWindow.quit()
-    if cvAsyncMaskWindow is not None:
+    if cvAsyncMaskWindow is not None and cvAsyncMaskWindow.update:
         cvAsyncMaskWindow.quit()
 
     filename = of.get_file()
@@ -253,7 +251,7 @@ def prepare_image():
         r = auxfuncs.alpha_blend(src_img_scaled, draw_img, channels=3)
         return auxfuncs.alpha_blend(r, annotations_img, channels=3)
 
-    if cvAsyncPrepareWindow is not None:
+    if cvAsyncPrepareWindow is not None and cvAsyncPrepareWindow.running:
         cvAsyncPrepareWindow.quit()
         cvAsyncPrepareWindow = None
         return
@@ -305,7 +303,7 @@ def open_mask_creation():
         global src_img_scaled,mask_image
         return auxfuncs.alpha_blend(src_img_scaled, mask_image, channels=3)
 
-    if cvAsyncMaskWindow is not None:
+    if cvAsyncMaskWindow is not None and cvAsyncMaskWindow.running:
         cvAsyncMaskWindow.quit()
         cvAsyncMaskWindow = None
         return
@@ -389,7 +387,7 @@ def preview_paintbrush_size(from_toggle):
         cv2.circle(preview_img, (100, 100), brush_radius.get(), 1, -1)
         cv2.imshow('brush preview', preview_img)
         if from_toggle:
-            cv2.moveWindow('brush preview', 0, 25*5+30);
+            cv2.moveWindow('brush preview', 0, 25*6+30);
     else:
         cv2.destroyWindow('brush preview')
 
@@ -407,6 +405,8 @@ Checkbutton(circle_frame, variable=preview_brush_bvar, command=lambda: preview_p
 def change_rectangle_color():
     global rectangle_color, rectangle_color_label, draw_rectangle_color
     rectangle_color = askcolor()
+    if rectangle_color[0] is None:
+        return
     rectangle_color_label.config(background=rectangle_color[1])
     draw_rectangle_color = (float(rectangle_color[0][2]) / 255,
                             float(rectangle_color[0][1]) / 255,
@@ -417,6 +417,8 @@ def change_rectangle_color():
 def change_brush_color():
     global brush_color, brush_color_label, draw_circle_color
     brush_color = askcolor()
+    if brush_color[0] is None:
+        return
     brush_color_label.config(background=brush_color[1])
     draw_circle_color = (float(brush_color[0][2]) / 255,
                          float(brush_color[0][1]) / 255,
@@ -427,24 +429,25 @@ def change_brush_color():
 # Color picker Frame
 color_frame = Frame(root)
 color_frame.pack(side="top", fill="both")
-rectangle_color = '#%02x%02x%02x' % (int(draw_rectangle_color[0] * 255),
+rectangle_color = (int(draw_rectangle_color[0] * 255),
                                      int(draw_rectangle_color[1] * 255),
                                      int(draw_rectangle_color[2] * 255))
-brush_color = '#%02x%02x%02x' % (int(draw_circle_color[2] * 255),
+rectangle_color = [rectangle_color,'#%02x%02x%02x' % rectangle_color]
+brush_color = (int(draw_circle_color[2] * 255),
                                  int(draw_circle_color[1] * 255),
                                  int(draw_circle_color[0] * 255))
-rectangle_color_label = Label(color_frame, text="   ", background=rectangle_color)
-rectangle_color_label.pack()
-Label(color_frame, text="\n Rectangle Color").pack()
-Button(color_frame, text="Pick Color", command=change_rectangle_color).pack()
-brush_color_label = Label(color_frame, text="   ", background=brush_color)
-brush_color_label.pack()
-Label(color_frame, text="\n Brush Color").pack()
-Button(color_frame, text="Pick Color", command=change_brush_color).pack()
-
+brush_color = [brush_color,'#%02x%02x%02x' % brush_color]
+Label(color_frame, text="Rectangle Color").pack(side=LEFT, fill="both")
+rectangle_color_label = Label(color_frame, text="   ", background=rectangle_color[1])
+rectangle_color_label.pack(side=LEFT, fill="both")
+Button(color_frame, text="Pick Color", command=change_rectangle_color).pack(side=LEFT, fill="both")
+Label(color_frame, text="Brush Color").pack(side=LEFT, fill="both")
+brush_color_label = Label(color_frame, text="   ", background=brush_color[1])
+brush_color_label.pack(side=LEFT, fill="both")
+Button(color_frame, text="Pick Color", command=change_brush_color).pack(side=LEFT, fill="both")
 
 center(root)   #center window content
-root.geometry('%dx%d+%d+%d' % (ws, 25*5, -8, 0))    #place window on this screen position
+root.geometry('%dx%d+%d+%d' % (ws, 25*6, -8, 0))    #place window on this screen position
 
 root.mainloop()
 cv2.destroyAllWindows()
