@@ -255,10 +255,24 @@ def augment():
     MIN_MATCH_COUNT = 4 + min_good_points_extra
 #endregion
 
+    #compute SIFT
+    try:
+        PrintTestStep('extract keypoints and descriptors from user image with SIFT')
+        user_img_grey = cv2.cvtColor(user_img, cv2.COLOR_RGB2GRAY)
+        feature_detector = cv2.xfeatures2d.SIFT_create()  # cv2.ORB_create(nfeatures=5000)#cv2.xfeatures2d.SURF_create()#cv2.xfeatures2d.SIFT_create()
+        kp2, des2 = feature_detector.detectAndCompute(user_img_grey, None)
+        if mode_var.get() == TEST:
+            temp_img = user_img.copy()
+            cv_showWindowWithMaxDim('\'aug\' features', cv2.drawKeypoints(temp_img, kp2, temp_img), maxdim=500)
+    except:
+        PrintInfo('failed to get features from image to augment')
+        PrintInfo("Unexpected error:" + str(sys.exc_info()[0]))
+        return False
+
     # LOAD REFERENCE IMAGE DATA
     task_start_time = time.time()
     try:
-        with open(findBestMatch(user_img), 'rb') as input:
+        with open(findBestMatch(des2), 'rb') as input:
             kp1, des1 = unpickle_keypoints(pickle.load(input))
             annotations = pickle.load(input)
             drawn_image = pickle.load(input)
@@ -280,20 +294,6 @@ def augment():
                                                                                      expand="yes")
         temp_img = src_img.copy()
         cv_showWindowWithMaxDim('\'DB\' features', cv2.drawKeypoints(temp_img, kp1, temp_img), maxdim=500)
-
-    #SIFT
-    try:
-        PrintTestStep('extract keypoints and descriptors from user image with SIFT')
-        user_img_grey = cv2.cvtColor(user_img, cv2.COLOR_RGB2GRAY)
-        feature_detector = cv2.xfeatures2d.SIFT_create()  # cv2.ORB_create(nfeatures=5000)#cv2.xfeatures2d.SURF_create()#cv2.xfeatures2d.SIFT_create()
-        kp2, des2 = feature_detector.detectAndCompute(user_img_grey, None)
-        if mode_var.get() == TEST:
-            temp_img = user_img.copy()
-            cv_showWindowWithMaxDim('\'aug\' features', cv2.drawKeypoints(temp_img, kp2, temp_img), maxdim=500)
-    except:
-        PrintInfo('failed to get features from image to augment')
-        PrintInfo("Unexpected error:" + str(sys.exc_info()[0]))
-        return False
 
     PrintTestStep('select matcher based on number of descriptors')
     task_start_time = time.time()
