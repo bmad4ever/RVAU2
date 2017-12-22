@@ -222,9 +222,9 @@ def load_image():
     annotations = []    # clear annotations from previous images
 
     #Close active windows
-    if cvAsyncPrepareWindow is not None and cvAsyncPrepareWindow.update:
+    if cvAsyncPrepareWindow is not None and cvAsyncPrepareWindow.running:
         cvAsyncPrepareWindow.quit()
-    if cvAsyncMaskWindow is not None and cvAsyncMaskWindow.update:
+    if cvAsyncMaskWindow is not None and cvAsyncMaskWindow.running:
         cvAsyncMaskWindow.quit()
 
     filename = of.get_file()
