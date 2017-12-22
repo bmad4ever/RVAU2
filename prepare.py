@@ -352,11 +352,27 @@ Button(header_frame, text="Close OpenCV Windows", command=close_all_windows).pac
 
 #Label(root, text='_'*100).pack(side=TOP, fill="both", expand="yes")
 
+
+def help_win():
+    help_window = Toplevel(root)
+    help_window.title("Instructions")
+    help_frame = Frame(help_window)
+    help_frame.pack(side="top", fill="both")
+    Label(help_frame, text="Instructions").pack()
+    Label(help_frame, text="Use the \"Load Image\" button to use an image of your choosing.").pack()
+    Label(help_frame, text="You can add labels by selecting the label radio button and double click the image in the prepare window.").pack()
+    Label(help_frame, text="You can also paint the image with a brush and rectangles. Color can be chosen.").pack()
+    Label(help_frame, text="After the image has been loaded you can create a mask using the custom mask editor.").pack()
+    Label(help_frame, text="Use the brush to extract the are of the image you want to analyse.").pack()
+    Label(help_frame, text="Use the \"Compute KeyPoint\" button to run the keyPoint detection algorithm.").pack()
+    Label(help_frame, text="Use the \"Save to File\" button to save the data after running the algorithm.").pack()
+
+
 prepare_frame = Frame(root)
 prepare_frame.pack(side="top", fill="both")
 Button(prepare_frame, text="Open/Close Prepare Image", command=prepare_image).pack(side=LEFT,fill="both", expand="yes")
 Button(prepare_frame, text="Open/Close Custom Mask Editor", command=open_mask_creation).pack(side=LEFT, fill="both", expand="yes")
-Button(prepare_frame, text="HELP", command=None).pack(side=LEFT, fill="both", expand="yes")
+Button(prepare_frame, text="HELP", command=help_win).pack(side=LEFT, fill="both", expand="yes")
 
 #Prepare image Options
 #mode_text = StringVar()
